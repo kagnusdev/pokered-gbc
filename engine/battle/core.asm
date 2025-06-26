@@ -324,7 +324,7 @@ MainInBattleLoop:
 	bit USING_TRAPPING_MOVE, a ; check if enemy is using a multi-turn attack like wrap
 	jr z, .selectPlayerMove ; if not, jump
 ; enemy is using a multi-turn attack like wrap, so player is trapped and cannot execute a move
-	ld a, $ff
+	ld a, CANNOT_MOVE
 	ld [wPlayerSelectedMove], a
 	jr .selectEnemyMove
 .selectPlayerMove
@@ -2031,6 +2031,7 @@ DisplayBattleMenu::
 	call DisplayTextBoxID
  ; handle menu input if it's not the old man tutorial
 	ld a, [wBattleType]
+	ASSERT BATTLE_TYPE_OLD_MAN == 1
 	dec a
 	jp nz, .handleBattleMenuInput
 ; the following happens for the old man tutorial
@@ -2390,10 +2391,10 @@ PartyMenuOrRockOrRun:
 	jr nz, .doEnemyMonAnimation
 ; enemy mon doesn't have substitute
 	ld a, [wEnemyMonMinimized]
-	and a ; has the enemy mon used Minimise?
+	and a ; has the enemy mon used Minimize?
 	ld hl, AnimationMinimizeMon
 	jr nz, .doEnemyMonAnimation
-; enemy mon is not minimised
+; enemy mon is not minimized
 	ld a, [wEnemyMonSpecies]
 	ld [wCurPartySpecies], a
 	ld [wCurSpecies], a
@@ -2659,7 +2660,7 @@ SelectMenuItem:
 	ld b, $0
 	add hl, bc
 	ld a, [hl]
-	and $3f
+	and PP_MASK
 	jr z, .noPP
 	ld a, [wPlayerDisabledMove]
 	swap a
@@ -2739,7 +2740,7 @@ AnyMoveToSelect:
 	or [hl]
 	inc hl
 	or [hl]
-	and $3f
+	and PP_MASK
 	ret nz
 	jr .noMovesLeft
 .handleDisabledMove
@@ -2893,7 +2894,7 @@ PrintMenuItem:
 	ld hl, wBattleMonPP
 	add hl, bc
 	ld a, [hl]
-	and $3f
+	and PP_MASK
 	ld [wBattleMenuCurrentPP], a
 ; print TYPE/<type> and <curPP>/<maxPP>
 	hlcoord 1, 9
@@ -3009,7 +3010,7 @@ SelectEnemyMove:
 	pop hl
 	jr z, .chooseRandomMove ; move disabled, try again
 	and a
-	jr z, .chooseRandomMove ; move non-existant, try again
+	jr z, .chooseRandomMove ; move non-existent, try again
 .done
 	ld [wEnemySelectedMove], a
 	ret
@@ -3033,7 +3034,8 @@ LinkBattleExchangeData:
 	ld b, LINKBATTLE_STRUGGLE
 	jr z, .next
 	dec b ; LINKBATTLE_NO_ACTION
-	inc a ; does move equal -1 (i.e. no action)?
+	ASSERT CANNOT_MOVE == $ff
+	inc a
 	jr z, .next
 	ld a, [wPlayerMoveListIndex]
 	jr .doExchange
@@ -3086,8 +3088,9 @@ ExecutePlayerMove:
 	xor a
 	ldh [hWhoseTurn], a ; set player's turn
 	ld a, [wPlayerSelectedMove]
+	ASSERT CANNOT_MOVE == $ff
 	inc a
-	jp z, ExecutePlayerMoveDone ; for selected move = FF, skip most of player's turn
+	jp z, ExecutePlayerMoveDone ; if the player cannot move, skip most of their turn
 	xor a
 	ld [wMoveMissed], a
 	ld [wMonIsDisobedient], a
@@ -4086,18 +4089,18 @@ CheckForDisobedience:
 	ld hl, wBattleMonPP
 	push hl
 	ld a, [hli]
-	and $3f
+	and PP_MASK
 	ld b, a
 	ld a, [hli]
-	and $3f
+	and PP_MASK
 	add b
 	ld b, a
 	ld a, [hli]
-	and $3f
+	and PP_MASK
 	add b
 	ld b, a
 	ld a, [hl]
-	and $3f
+	and PP_MASK
 	add b
 	pop hl
 	push af
@@ -4106,7 +4109,7 @@ CheckForDisobedience:
 	ld b, $0
 	add hl, bc
 	ld a, [hl]
-	and $3f
+	and PP_MASK
 	ld b, a
 	pop af
 	cp b
@@ -4463,7 +4466,7 @@ CalculateDamage:
 ; Multi-hit attacks may or may not have 0 bp.
 	cp TWO_TO_FIVE_ATTACKS_EFFECT
 	jr z, .skipbp
-	cp $1e
+	cp EFFECT_1E
 	jr z, .skipbp
 
 ; Calculate OHKO damage based on remaining HP.
@@ -5172,7 +5175,7 @@ MetronomePickMove:
 	and a
 	jr z, .pickMoveLoop
 	cp STRUGGLE
-	assert NUM_ATTACKS == STRUGGLE ; random numbers greater than STRUGGLE are not moves
+	ASSERT NUM_ATTACKS == STRUGGLE ; random numbers greater than STRUGGLE are not moves
 	jr nc, .pickMoveLoop
 	cp METRONOME
 	jr z, .pickMoveLoop
@@ -5599,6 +5602,7 @@ RandomizeDamage:
 ; for more detailed commentary, see equivalent function for player side (ExecutePlayerMove)
 ExecuteEnemyMove:
 	ld a, [wEnemySelectedMove]
+	ASSERT CANNOT_MOVE == $ff
 	inc a
 	jp z, ExecuteEnemyMoveDone
 	call PrintGhostText
@@ -6713,7 +6717,7 @@ BattleRandom:
 	add hl, bc
 	inc a
 	ld [wLinkBattleRandomNumberListIndex], a
-	cp 9
+	cp SERIAL_RNS_LENGTH - 1
 	ld a, [hl]
 	pop bc
 	pop hl
@@ -6736,7 +6740,7 @@ ENDC
 	ld [wLinkBattleRandomNumberListIndex], a
 
 	ld hl, wLinkBattleRandomNumberList
-	ld b, 9
+	ld b, SERIAL_RNS_LENGTH - 1
 .loop
 	ld a, [hl]
 	ld c, a
@@ -6786,7 +6790,7 @@ HandleExplodingAnimation:
 	ret nz
 	ld a, ANIMATIONTYPE_SHAKE_SCREEN_HORIZONTALLY_LIGHT
 	ld [wAnimationType], a
-	assert ANIMATIONTYPE_SHAKE_SCREEN_HORIZONTALLY_LIGHT == MEGA_PUNCH
+	ASSERT ANIMATIONTYPE_SHAKE_SCREEN_HORIZONTALLY_LIGHT == MEGA_PUNCH
 	; ld a, MEGA_PUNCH
 ; fallthrough
 PlayMoveAnimation:
@@ -6947,7 +6951,7 @@ _LoadTrainerPic:
 	ld d, a ; de contains pointer to trainer pic
 	ld a, [wLinkState]
 	and a
-	ld a, BANK("Pics 6") ; this is where all the trainer pics are (not counting Red's)
+	ld a, BANK("Trainer Pics")
 	jr z, .loadSprite
 	ld a, BANK(RedPicFront)
 .loadSprite

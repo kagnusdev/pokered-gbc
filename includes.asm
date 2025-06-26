@@ -57,3 +57,9 @@ INCLUDE "constants/menu_constants.asm"
 
 INCLUDE "color/wram.asm"
 INCLUDE "color/data/map_palette_constants.asm"
+IF DEF(_RED_VC)
+INCLUDE "vc/pokered.constants.asm"
+ENDC
+IF DEF(_BLUE_VC)
+INCLUDE "vc/pokeblue.constants.asm"
+ENDC
