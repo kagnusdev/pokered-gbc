@@ -243,7 +243,7 @@ LoadSGB:
 	nop
 	ld a, $1
 	ld [wOnSGB], a
-	ld a, [wGBC]
+	ld a, [wOnCGB]
 	and a
 	;jr z, .asm_7203f
 	nop
@@ -393,21 +393,21 @@ Wait7000:
 	ret
 
 SendSGBPackets:
-	ld a, [wGBC]
+	ld a, [wOnCGB]
 	and a
-	jr z, .notGBC
+	jr z, .notCGB
 	push de
-	call InitGBCPalettes
+	call InitCGBPalettes
 	pop hl
 	call EmptyFunc3
 	ret
-.notGBC
+.notCGB
 	push de
 	call SendSGBPacket
 	pop hl
 	jp SendSGBPacket
 
-InitGBCPalettes:
+InitCGBPalettes:
 	ld a, $80 ; index 0 with auto-increment
 	ldh [rBGPI], a
 	inc hl
